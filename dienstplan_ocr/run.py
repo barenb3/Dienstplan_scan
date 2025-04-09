@@ -5,15 +5,12 @@ from datetime import datetime
 from ics import Calendar, Event
 import os
 
-# OCR-Konfiguration
 os.environ["TESSDATA_PREFIX"] = "/usr/share/tesseract-ocr/4.00/"
 
-# Dienstplan-Datei suchen
 verzeichnis = "/config/www/"
 dienstplan_datei = None
 monat = jahr = None
 
-# Datei wie dienstplan_04.2025.jpg finden
 muster = re.compile(r"dienstplan_(\d{2})\.(\d{4})\.jpg")
 
 for datei in os.listdir(verzeichnis):
@@ -28,10 +25,8 @@ if not dienstplan_datei:
     print("❌ Keine passende Dienstplan-Datei gefunden (Format: dienstplan_MM.JJJJ.jpg)")
     exit(1)
 
-# Ziel für die ICS-Datei automatisch setzen
 ics_ziel = os.path.join(verzeichnis, f"dienstplan_{monat:02d}.{jahr}.ics")
 
-# Schichtzeiten
 schichtzeiten = {
     "F14": ("07:00", "10:00"),
     "F06": ("07:00", "14:00"),
