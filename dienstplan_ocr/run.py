@@ -5,9 +5,33 @@ from datetime import datetime
 from ics import Calendar, Event
 import os
 
-bildpfad = "/config/www/dienstplan.jpg"
-ics_ziel = "/config/www/dienstplan.ics"
+# OCR-Konfiguration
+os.environ["TESSDATA_PREFIX"] = "/usr/share/tesseract-ocr/4.00/"
 
+# Dienstplan-Datei suchen
+verzeichnis = "/config/www/"
+dienstplan_datei = None
+monat = jahr = None
+
+# Datei wie dienstplan_04.2025.jpg finden
+muster = re.compile(r"dienstplan_(\d{2})\.(\d{4})\.jpg")
+
+for datei in os.listdir(verzeichnis):
+    match = muster.match(datei)
+    if match:
+        monat = int(match.group(1))
+        jahr = int(match.group(2))
+        dienstplan_datei = os.path.join(verzeichnis, datei)
+        break
+
+if not dienstplan_datei:
+    print("❌ Keine passende Dienstplan-Datei gefunden (Format: dienstplan_MM.JJJJ.jpg)")
+    exit(1)
+
+# Ziel für die ICS-Datei automatisch setzen
+ics_ziel = os.path.join(verzeichnis, f"dienstplan_{monat:02d}.{jahr}.ics")
+
+# Schichtzeiten
 schichtzeiten = {
     "F14": ("07:00", "10:00"),
     "F06": ("07:00", "14:00"),
@@ -16,18 +40,12 @@ schichtzeiten = {
     "F01": ("06:45", "14:00"),
 }
 
-monat = 4
-jahr = 2025
-
 def verarbeite_bild():
-    if not os.path.exists(bildpfad):
-        print("❌ Kein Bild gefunden unter:", bildpfad)
-        return
-
-    bild = Image.open(bildpfad)
+    print(f"📷 Verarbeite Datei: {dienstplan_datei}")
+    bild = Image.open(dienstplan_datei)
     text = pytesseract.image_to_string(bild, lang="deu")
-    kalender = Calendar()
 
+    kalender = Calendar()
     tag_pattern = re.compile(r"(\d{1,2})\s+\w+\s+([A-Z0-9]+)")
 
     for zeile in text.splitlines():
@@ -45,10 +63,12 @@ def verarbeite_bild():
                 event.begin = start
                 event.end = ende
                 kalender.events.add(event)
+                print(f"➕ Eintrag: {event.name} ({start.time()}–{ende.time()})")
 
     with open(ics_ziel, "w", encoding="utf-8") as f:
         f.writelines(kalender.serialize_iter())
 
-    print("✅ Dienstplan geschrieben nach:", ics_ziel)
+    print(f"✅ Dienstplan gespeichert als: {ics_ziel}")
 
-verarbeite_bild()
+if __name__ == "__main__":
+    verarbeite_bild()
