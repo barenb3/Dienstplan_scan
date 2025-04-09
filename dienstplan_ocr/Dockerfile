@@ -1,11 +1,12 @@
-ARG BUILD_FROM
-FROM ${BUILD_FROM}
+FROM python:3.11-alpine
 
-RUN apk add --no-cache tesseract-ocr py3-pillow py3-pip py3-setuptools py3-virtualenv py3-wheel
+# Installiere Systemabhängigkeit für pytesseract
+RUN apk add --no-cache tesseract-ocr
 
-COPY requirements.txt /
+# Kopiere Code und Requirements
+COPY requirements.txt /requirements.txt
 RUN pip install --no-cache-dir -r /requirements.txt
 
 COPY run.py /run.py
 
-CMD ["python3", "/run.py"]
+CMD ["python", "/run.py"]
