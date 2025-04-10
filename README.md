@@ -1,34 +1,67 @@
-# Dienstplan OCR Add-on für Home Assistant 📅🧠
+# Dienstplan OCR Add-on für Home Assistant
 
-Dieses Add-on erkennt fotografierte Dienstpläne im JPG-Format und erstellt automatisch `.ics`-Kalendereinträge, die sich in Home Assistant einbinden lassen.
+Dieses Add-on erkennt fotografierte Dienstpläne aus einer Bilddatei (z. B. `dienstplan_04.2025.jpg`)
+und erstellt daraus automatisch `.ics`-Kalendereinträge.
 
-## ✅ Funktionen
+## ✅ Funktion
 
-- Automatische Texterkennung (OCR) mit Tesseract
-- Unterstützt Schichtformate wie `F06`, `F14`, `S04`, usw.
-- Generiert `.ics`-Kalenderdateien im Ordner `/config/www`
-- Kompatibel mit lokalem Kalender oder externem Import
+- OCR mit Tesseract (`deu.traineddata`)
+- Auswertung typischer Dienstpläne wie: `1 / Mo / F14`
+- `.ics` wird im Ordner `/config/www` gespeichert
 
-## 📷 Datei-Format
+## 📷 Benutzung
 
-Lege ein Bild mit dem Namen `dienstplan_MM.JJJJ.jpg` in den Ordner `/config/www`, z. B.:
+Lege eine Datei in `/config/www/` ab, z. B.:
 
 ```
-/config/www/dienstplan_04.2025.jpg
+dienstplan_04.2025.jpg
 ```
 
-## ⚙️ Installation
+Das Add-on erkennt Monat & Jahr und erzeugt automatisch:
 
-1. Dieses Repository zu GitHub hochladen
-2. In Home Assistant hinzufügen unter:  
-   **Einstellungen → Add-ons → Repositories → `https://github.com/deinname/dienstplan_ocr`**
-3. Add-on installieren & starten
+```
+dienstplan_04.2025.ics
+```
 
-## 📌 Voraussetzung
+## 🔧 Home Assistant Integration
 
-- Home Assistant 2023.0.0 oder neuer
-- Aktivierte lokale Kalender-Funktion (optional für Anzeige)
+1. Füge in deiner `configuration.yaml` hinzu:
 
-## 🧠 Hinweis
+```yaml
+calendar:
+  - platform: local_calendar
+    name: Dienstplan
+    file_path: /config/dienstplan.ics
+```
 
-Das Add-on analysiert nur Bilder mit einem klar erkennbaren Datum + Schichtcode pro Zeile.
+2. Kopiere die `.ics` (z. B. per Shell oder Automation) nach:
+
+```
+/config/dienstplan.ics
+```
+
+3. Starte Home Assistant neu oder lade YAML neu
+
+## 📅 Kalenderanzeige in Lovelace
+
+```yaml
+type: calendar
+entities:
+  - calendar.dienstplan
+```
+
+## ⚙️ Automatisierung (Beispiel)
+
+```yaml
+trigger:
+  - platform: calendar
+    event: start
+    entity_id: calendar.dienstplan
+condition:
+  - condition: template
+    value_template: "{{ trigger.calendar_event.summary.startswith('Dienst:') }}"
+action:
+  - service: notify.persistent_notification.create
+    data:
+      message: "Heute: {{ trigger.calendar_event.summary }}"
+```
