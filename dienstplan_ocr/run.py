@@ -38,6 +38,15 @@ schichtzeiten = {
     "F01": ("06:45", "14:00"),
 }
 
+def normalize_code(code):
+    return (
+        code.replace("O", "0")
+            .replace("o", "0")
+            .replace(" ", "")
+            .strip()
+            .upper()
+    )
+
 def verarbeite_bild():
     print(f"📷 Verarbeite Datei: {dienstplan_datei}")
     bild = Image.open(dienstplan_datei)
@@ -50,12 +59,13 @@ def verarbeite_bild():
 
     kalender = Calendar()
 
-    # Parser: Suche nach Mustern wie "1 Di F06" oder "15 Mi F14"
-    matches = re.findall(r"(\d{1,2})\s+\w{2}\s+(F\d{2}|S\d{2}|F01)", text)
-    for tag_str, code in matches:
+    # Regex-Suche für z. B. "15 Di F06"
+    matches = re.findall(r"(\d{1,2})\s+\w{2}\s+(F\d{2}|S\d{2}|F01|FO6|F0[1-9])", text)
+    for tag_str, raw_code in matches:
         try:
             tag = int(tag_str)
-            zeiten = schichtzeiten.get(code.upper())
+            code = normalize_code(raw_code)
+            zeiten = schichtzeiten.get(code)
             if zeiten:
                 datum = datetime(jahr, monat, tag)
                 start = datetime.strptime(f"{datum.date()} {zeiten[0]}", "%Y-%m-%d %H:%M")
