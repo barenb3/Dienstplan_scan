@@ -13,8 +13,6 @@ dienstplan_datei = None
 monat = jahr = None
 
 muster = re.compile(r"dienstplan_(\d{2})\.(\d{4})\.jpg")
-
-# Datei suchen
 for datei in os.listdir(verzeichnis):
     match = muster.match(datei)
     if match:
@@ -29,7 +27,6 @@ if not dienstplan_datei:
 
 ics_ziel = os.path.join(verzeichnis, f"dienstplan_{monat:02d}.{jahr}.ics")
 
-# Schichtzeiten definieren
 schichtzeiten = {
     "F14": ("07:00", "10:00"),
     "F06": ("07:00", "14:00"),
@@ -37,6 +34,8 @@ schichtzeiten = {
     "S04": ("13:45", "20:30"),
     "F01": ("06:45", "14:00"),
 }
+
+irrelevante = {"W", "WFREI", "FREI", "Wfrei", "i", "I"}
 
 def normalize(code):
     return code.replace("O", "0").replace("o", "0").strip().upper()
@@ -51,33 +50,45 @@ def verarbeite_bild():
     print(text)
     print("-" * 30 + "\n")
 
-    lines = [l.strip() for l in text.splitlines() if l.strip()]
     kalender = Calendar()
-    letzter_tag = []
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    tag_pattern = re.compile(r"^(\d{1,2})\s*(Mo|Di|Mi|Do|Fr|Sa|So)?$")
+    code_pattern = re.compile(r"^(F\d{2}|S\d{2})$")
 
-    tag_pattern = r"(\d{1,2})\s+(Mo|Di|Mi|Do|Fr|Sa|So)"
-    code_pattern = r"\b(F\d{2}|S\d{2})\b"
+    tag_code_pairs = []
+    tag_buffer = []
 
-    for line in lines:
-        tag_matches = re.findall(tag_pattern, line)
-        if tag_matches:
-            letzter_tag = [int(t[0]) for t in tag_matches]
-        else:
-            code_matches = re.findall(code_pattern, line)
-            code_matches = [normalize(c) for c in code_matches if normalize(c) in schichtzeiten]
-            for tag, code in zip(letzter_tag, code_matches):
-                datum = datetime(jahr, monat, tag)
-                start, ende = schichtzeiten[code]
-                start_dt = datetime.strptime(f"{datum.date()} {start}", "%Y-%m-%d %H:%M")
-                ende_dt = datetime.strptime(f"{datum.date()} {ende}", "%Y-%m-%d %H:%M")
-                event = Event()
-                event.name = f"Dienst: {code}"
-                event.begin = start_dt
-                event.end = ende_dt
-                event.uid = f"{uuid.uuid4()}@{str(uuid.uuid4())[:4]}.org"
-                kalender.events.add(event)
-                print(f"➕ {datum.strftime('%d.%m.%Y')}: Dienst {code} ({start}–{ende})")
-            letzter_tag = []
+    # 1. Erfasse alle Tage mit Position
+    for idx, line in enumerate(lines):
+        if tag_pattern.match(line):
+            tag = int(tag_pattern.match(line).group(1))
+            tag_buffer.append((idx, tag))
+
+    # 2. Für jeden erkannten Tag: Suche in den nächsten 3 Zeilen nach Schichtcode
+    for idx, tag in tag_buffer:
+        for offset in range(1, 4):
+            if idx + offset < len(lines):
+                candidate = normalize(lines[idx + offset])
+                if candidate in schichtzeiten and candidate not in irrelevante:
+                    tag_code_pairs.append((tag, candidate))
+                    break
+
+    # 3. Erzeuge Kalendereinträge
+    for tag, code in tag_code_pairs:
+        try:
+            datum = datetime(jahr, monat, tag)
+            start, ende = schichtzeiten[code]
+            start_dt = datetime.strptime(f"{datum.date()} {start}", "%Y-%m-%d %H:%M")
+            ende_dt = datetime.strptime(f"{datum.date()} {ende}", "%Y-%m-%d %H:%M")
+            event = Event()
+            event.name = f"Dienst: {code}"
+            event.begin = start_dt
+            event.end = ende_dt
+            event.uid = f"{uuid.uuid4()}@{str(uuid.uuid4())[:4]}.org"
+            kalender.events.add(event)
+            print(f"➕ {datum.strftime('%d.%m.%Y')}: Dienst {code} ({start}–{ende})")
+        except Exception as e:
+            print(f"⚠️ Fehler bei Tag {tag}: {e}")
 
     with open(ics_ziel, "w", encoding="utf-8") as f:
         f.writelines(kalender.serialize_iter())
