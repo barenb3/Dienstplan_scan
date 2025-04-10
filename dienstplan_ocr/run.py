@@ -5,7 +5,10 @@ from datetime import datetime
 from ics import Calendar, Event
 import os
 
-os.environ["TESSDATA_PREFIX"] = "/usr/share/tesseract-ocr/4.00/"
+os.environ["TESSDATA_PREFIX"] = "/usr/share/tessdata"
+
+print("📂 Inhalt von /usr/share/tessdata/:")
+os.system("ls -l /usr/share/tessdata/")
 
 verzeichnis = "/config/www/"
 dienstplan_datei = None
