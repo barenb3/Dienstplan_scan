@@ -44,13 +44,11 @@ def verarbeite_bild():
     text = pytesseract.image_to_string(bild, lang="deu")
 
     kalender = Calendar()
-    tag_pattern = re.compile(r"(\d{1,2})\s+\w+\s+([A-Z0-9]+)")
-
-    for zeile in text.splitlines():
-        match = tag_pattern.search(zeile)
-        if match:
-            tag = int(match.group(1))
-            code = match.group(2).upper()
+    zeilen = [z.strip() for z in text.splitlines() if z.strip()]
+    for i in range(len(zeilen) - 2):
+        if zeilen[i].isdigit():
+            tag = int(zeilen[i])
+            code = zeilen[i + 2].upper()
             zeiten = schichtzeiten.get(code)
             if zeiten:
                 datum = datetime(jahr, monat, tag)
