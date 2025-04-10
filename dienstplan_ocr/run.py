@@ -43,19 +43,19 @@ def verarbeite_bild():
     bild = Image.open(dienstplan_datei)
     text = pytesseract.image_to_string(bild, lang="deu")
 
-    # DEBUG-Ausgabe:
     print("\n🔍 OCR-ROH-TEXT:")
     print("-" * 30)
     print(text)
     print("-" * 30 + "\n")
 
     kalender = Calendar()
-    zeilen = [z.strip() for z in text.splitlines() if z.strip()]
-    for i in range(len(zeilen) - 2):
-        if zeilen[i].isdigit():
-            tag = int(zeilen[i])
-            code = zeilen[i + 2].upper()
-            zeiten = schichtzeiten.get(code)
+
+    # Parser: Suche nach Mustern wie "1 Di F06" oder "15 Mi F14"
+    matches = re.findall(r"(\d{1,2})\s+\w{2}\s+(F\d{2}|S\d{2}|F01)", text)
+    for tag_str, code in matches:
+        try:
+            tag = int(tag_str)
+            zeiten = schichtzeiten.get(code.upper())
             if zeiten:
                 datum = datetime(jahr, monat, tag)
                 start = datetime.strptime(f"{datum.date()} {zeiten[0]}", "%Y-%m-%d %H:%M")
@@ -66,6 +66,8 @@ def verarbeite_bild():
                 event.end = ende
                 kalender.events.add(event)
                 print(f"➕ Eintrag: {event.name} ({start.time()}–{ende.time()})")
+        except Exception as e:
+            print(f"⚠️ Fehler bei Tag {tag_str}: {e}")
 
     with open(ics_ziel, "w", encoding="utf-8") as f:
         f.writelines(kalender.serialize_iter())
