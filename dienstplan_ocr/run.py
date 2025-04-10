@@ -7,9 +7,6 @@ import os
 
 os.environ["TESSDATA_PREFIX"] = "/usr/share/tessdata"
 
-print("📂 Inhalt von /usr/share/tessdata/:")
-os.system("ls -l /usr/share/tessdata/")
-
 verzeichnis = "/config/www/"
 dienstplan_datei = None
 monat = jahr = None
@@ -59,25 +56,32 @@ def verarbeite_bild():
 
     kalender = Calendar()
 
-    # Regex-Suche für z. B. "15 Di F06"
-    matches = re.findall(r"(\d{1,2})\s+\w{2}\s+(F\d{2}|S\d{2}|F01|FO6|F0[1-9])", text)
-    for tag_str, raw_code in matches:
+    # Alle drei- bis vierstelligen alphanumerischen Codes extrahieren
+    alle_codes = re.findall(r"\b[A-Z0-9]{3,4}\b", text)
+    dienstcodes = []
+    for code in alle_codes:
+        norm = normalize_code(code)
+        if norm in schichtzeiten:
+            dienstcodes.append(norm)
+
+    print(f"📆 Gefundene relevante Dienstcodes ({len(dienstcodes)}): {dienstcodes}")
+
+    tage = list(range(1, len(dienstcodes) + 1))
+
+    for tag, code in zip(tage, dienstcodes):
+        zeiten = schichtzeiten[code]
         try:
-            tag = int(tag_str)
-            code = normalize_code(raw_code)
-            zeiten = schichtzeiten.get(code)
-            if zeiten:
-                datum = datetime(jahr, monat, tag)
-                start = datetime.strptime(f"{datum.date()} {zeiten[0]}", "%Y-%m-%d %H:%M")
-                ende = datetime.strptime(f"{datum.date()} {zeiten[1]}", "%Y-%m-%d %H:%M")
-                event = Event()
-                event.name = f"Dienst: {code}"
-                event.begin = start
-                event.end = ende
-                kalender.events.add(event)
-                print(f"➕ Eintrag: {event.name} ({start.time()}–{ende.time()})")
+            datum = datetime(jahr, monat, tag)
+            start = datetime.strptime(f"{datum.date()} {zeiten[0]}", "%Y-%m-%d %H:%M")
+            ende = datetime.strptime(f"{datum.date()} {zeiten[1]}", "%Y-%m-%d %H:%M")
+            event = Event()
+            event.name = f"Dienst: {code}"
+            event.begin = start
+            event.end = ende
+            kalender.events.add(event)
+            print(f"➕ Eintrag: {event.name} ({start.time()}–{ende.time()})")
         except Exception as e:
-            print(f"⚠️ Fehler bei Tag {tag_str}: {e}")
+            print(f"⚠️ Fehler bei Tag {tag}: {e}")
 
     with open(ics_ziel, "w", encoding="utf-8") as f:
         f.writelines(kalender.serialize_iter())
