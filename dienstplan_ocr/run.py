@@ -43,6 +43,12 @@ def verarbeite_bild():
     bild = Image.open(dienstplan_datei)
     text = pytesseract.image_to_string(bild, lang="deu")
 
+    # DEBUG-Ausgabe:
+    print("\n🔍 OCR-ROH-TEXT:")
+    print("-" * 30)
+    print(text)
+    print("-" * 30 + "\n")
+
     kalender = Calendar()
     zeilen = [z.strip() for z in text.splitlines() if z.strip()]
     for i in range(len(zeilen) - 2):
